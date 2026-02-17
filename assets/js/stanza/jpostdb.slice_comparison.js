@@ -232,7 +232,7 @@ jpostdb.slice_comparison = jpostdb.slice_comparison || {
 		    if(param.maxP < json[i].logp) param.maxP = json[i].logp;
 		}
 	//	json[i]._alink_name = "javascript:jPost.openProtein('" + json[i].uniprot + "')";
-		json[i]._alink_name = "./protein?id=" + json[i].uniprot;
+		json[i]._alink_name = "./protein.php?id=" + json[i].uniprot;
 		json[i]._alink_uniprot = "http://www.uniprot.org/uniprot/" + json[i].uniprot;
 		json[i]._target_name = "_new";
 		json[i]._target_uniprot = "_new";
