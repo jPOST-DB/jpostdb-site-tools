@@ -1,0 +1,5 @@
+library(curl)
+library(jsonlite)
+argv <- commandArgs(trailingOnly=TRUE)
+d <- fromJSON(argv[1])
+write.table(d, file=argv[2],sep="\t",quote=F,row.names=F,col.names=F)

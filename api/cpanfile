@@ -1,0 +1,10 @@
+# cpanfile
+
+# usage:
+#  * install 'cpanm' 
+#    *  % curl -L https://cpanmin.us | perl - App::cpanminus
+#  * % ${PAHT}/cpanm --installdeps .
+
+requires 'CGI';
+requires 'JSON';
+requires 'AneEvent';

@@ -1,0 +1,408 @@
+<html>
+  <head>
+    <title>jPOST database - Metaproteome</title>
+  <script type="module" src="https://togostanza.github.io/metastanza-devel/sunburst.js" async></script>
+  <script type="module" src="https://togostanza.github.io/metastanza-devel/key-value.js" async></script>
+  <script type="module" src="https://togostanza.github.io/metastanza-devel/barchart.js" async></script>
+  <script type="module" src="https://togostanza.github.io/metastanza-devel/pagination-table.js" async></script>
+
+  <style>
+  body {
+      margin: 0;
+      font-family: arial, verdana, helvetica, sans-serif;
+  }
+  div#head {
+      margin: 0;
+      padding: 15 0 15 50;
+      background-color: #fff2c9;
+      border-bottom: solid 2px #a19a74;
+      
+      h1.title {
+	  color: #524c3c;
+	  font-size: 28px;
+	  position: relative;
+	  top: 10px;
+	  left: 20px;
+      }
+  }
+  div.page {
+      padding: 10 80 10 80;
+      display: none;
+  }
+      
+  div.flex {
+      display: flex;
+  }
+  
+  a {
+      text-decoration: none;
+      color: #3da5bf;
+  }
+
+  a#ko_list {
+      font-weight: bold;
+      font-size: 20px;
+  }
+  a#head_jpost {
+      color: #524c3c;
+  }
+
+  .margin_l50 {
+      margin-left: 50px;
+  }
+
+  .footer_div {
+      text-align: center;
+      font-size: small;
+      margin: 20px 5px 10px 5px;
+  }
+
+  togostanza-pagination-table.table_default {
+      --togostanza-fonts-font_size_default: 16;
+      --togostanza-fonts-font_size_small: 16;
+      --togostanza-canvas-height: 460;
+  }
+
+  togostanza-barchart.multi {
+      --togostanza-canvas-width: 580;
+      --togostanza-fonts-font_size_small: 14;
+      --togostanza-canvas-padding: 10 10 90 60;
+  }
+  
+  togostanza-key-value {
+      --togostanza-fonts-font_size_default: 16px;
+      --togostanza-fonts-font_size_small: 16px;
+  }
+
+  togostanza-sunburst {
+      --togostanza-canvas-width: 800;
+      --togostanza-canvas-height: 800;
+  }
+
+  togostanza-barchart.single {
+      --togostanza-canvas-width: 300;
+      --togostanza-fonts-font_size_default: 16;
+      --togostanza-fonts-font_size_small: 16;
+      --togostanza-canvas-padding: 10 100 30 40;
+  }
+  
+  togostanza-pagination-table#protein_table {
+      --togostanza-fonts-font_size_default: 16;
+      --togostanza-fonts-font_size_small: 16;
+      --togostanza-canvas-height: 900;
+  }
+  </style>
+</head>
+<body>
+
+  <div id="head" class="flex">
+    <div>
+      <a href="/subdb/metaproteome/" id="head_jpost"><img src="https://globe.jpostdb.org/images/logo.svg" width="100" height="100"></a>
+    </div>
+    <div>
+      <h1 class="title"><a href="/subdb/metaproteome/" id="head_jpost">MetaProteome</a> <span style="font-size: 20px;">(dev)</span></h1>
+    </div>
+  </div>
+  
+  <div id="top" class="page">
+    
+    <p style="font-size:16px; width:700px; margin:40px 0px 40px 0px;"><span style="font-size:20px;font-weight:bold;">jPOST MetaProteome</span> is a database created by reanalyzing metaproteome data published in <a href="https://repository.jpostdb.org/" style="font-size:20px;font-weight:bold;">jPOSTrepo</a> using <a href="https://imetalab.ca/">MetaLab-MAG</a> platform. It is a sub-database of <a href="https://globe.jpostdb.org/" style="font-size:20px;font-weight:bold;">jPOSTdb</a>.</p>
+    <h2>Metaproteome projects</h2>
+    
+    <togostanza-pagination-table
+      id="project_table"
+      class="table_default"
+      data-url=""
+      data-type="json"
+      fixed-columns="1"
+      page-size_option="10,20,50,100"
+      page-slider
+      columns="[{&quot;id&quot;:&quot;project&quot;,&quot;label&quot;:&quot;Project&quot;,&quot;link&quot;:&quot;url&quot;,&quot;target&quot;:&quot;self&quot;},{&quot;id&quot;:&quot;sample_type&quot;, &quot;label&quot;:&quot;Sample type&quot;},{&quot;id&quot;:&quot;taxonomy_label&quot;,&quot;label&quot;:&quot;Host / Environment&quot;},{&quot;id&quot;:&quot;group_text&quot;,&quot;label&quot;:&quot;Groups&quot;}]"
+      message-not_found="No data found."
+      message-load_error="Failed to load data. Please try again."
+      ></togostanza-pagination-table>
+  </div>
+  
+  <div id="project" class="page">
+    <h2 id="project_id">Project: </h2>
+    
+    <togostanza-pagination-table
+      id="dataset_table"
+      class="table_default"
+      data-url=""
+      data-type="json"
+      fixed-columns="1"
+      page-size_option="10,20,50,100"
+      page-slider
+      columns="[{&quot;id&quot;:&quot;sample_name&quot;,&quot;label&quot;:&quot;Sample&quot;, &quot;link&quot;:&quot;url&quot;,&quot;target&quot;:&quot;self&quot;},{&quot;id&quot;:&quot;sample_type&quot;, &quot;label&quot;:&quot;Sample type&quot;},{&quot;id&quot;:&quot;taxonomy_label&quot;,&quot;label&quot;:&quot;Host / Environment&quot;},{&quot;id&quot;:&quot;group&quot;,&quot;label&quot;:&quot;Group&quot;},{&quot;id&quot;:&quot;psm&quot;,&quot;label&quot;:&quot;#PSMs&quot;,&quot;type&quot;:&quot;number&quot;},{&quot;id&quot;:&quot;peptide&quot;,&quot;label&quot;:&quot;#Peptides&quot;,&quot;type&quot;:&quot;number&quot;}]"
+      message-not_found="No data found."
+      message-load_error="Failed to load data. Please try again."
+      ></togostanza-pagination-table>
+    
+  </div>
+  
+  <div id="sample" class="page">
+    
+    <h1 id="sample_id">Sample: </h1>
+    
+    <togostanza-key-value
+      id="metadata"
+      data-url=""
+      data-type="json"
+      columns="[{&quot;id&quot;:&quot;sample_name&quot;, &quot;label&quot;:&quot;Sample&quot;},{&quot;id&quot;:&quot;sample_type&quot;, &quot;label&quot;:&quot;Sample type&quot;},{&quot;id&quot;:&quot;taxonomy_label&quot;, &quot;label&quot;:&quot;Host / Environment&quot;},{&quot;id&quot;: &quot;group&quot;, &quot;label&quot;:&quot;Group&quot;},{&quot;id&quot;:&quot;psm&quot;,&quot;label&quot;:&quot;#PSMs&quot;,&quot;type&quot;:&quot;number&quot;},{&quot;id&quot;:&quot;peptide&quot;,&quot;label&quot;:&quot;#Peptides&quot;,&quot;type&quot;:&quot;number&quot;}]"
+      togostanza-custom_css_url=""
+      ></togostanza-key-value>
+    
+    <div class="flex">
+      <div>
+	<h2>Taxonomy analysis</h2>
+	
+	<togostanza-sunburst
+	  id="taxonomy"
+	  data-url=""
+	  data-type="json"
+	  node-id_key="id"
+	  node-value_key="size"
+	  node-label_key="name"
+	  node-color_key="color"
+	  node-color_blend="normal"
+	  node-corner_radius="0"
+	  scaling="By value"
+	  max_depth="7"
+	  ></togostanza-sunburst>
+      </div>
+      
+      <div style="margin-left: 100px;">
+	<h2>Functional annotation</h2>
+	<div class="flex">
+	  <div>
+	    <h3>EC</h3>
+	    <togostanza-barchart id="ec"></togostanza-barchart>
+	  </div>
+	  <div>
+	    <h3>COG</h3>
+	    <togostanza-barchart id="cog"></togostanza-barchart>
+	  </div>
+	  
+	  <div>
+	    <h3>eggNOG</h3>
+	    <togostanza-barchart id="nog"></togostanza-barchart>
+	  </div>
+	</div>
+
+	<div class="flex">
+	  <div>
+	    <h3>GO: biological process</h3>
+	    <togostanza-barchart id="go_bp"></togostanza-barchart>
+	  </div>
+	  <div>
+	    <h3>GO: molecular function</h3>
+	    <togostanza-barchart id="go_mf"></togostanza-barchart>
+	  </div>
+	  
+	  <div>
+	    <h3>GO: cellular component</h3>
+	    <togostanza-barchart id="go_cc"></togostanza-barchart>
+	  </div>
+	</div>
+      </div>
+    </div>
+  
+    <h2>KO</h2>
+
+    <a href="" id="ko_list" target="ko_list" class="margin_l50">KO list</a> <span class="margin_l50">( <a href="https://www.genome.jp/kegg/mapper/color.html" target="kegg_mapper">KEGG Mapper</a> )</span>
+    
+    <h2>Proteins</h2>
+    
+    <togostanza-pagination-table
+      id="protein_table"
+      data-url=""
+      data-type="tsv"
+      fixed-columns="1"
+      page-size_option="10,20,50,100"
+      page-slider
+      columns=""
+      message-not_found="No data found."
+      message-load_error="Failed to load data. Please try again."
+      ></togostanza-pagination-table>
+  </div>
+
+
+  <div class="footer_div">
+    &copy; 2026, Japan Proteome Standard repository/database (<a href="https://jpostdb.org">jPOST</a>).
+  </div>
+  
+
+<script>
+  // API: https://tools.jpostdb.org/rest_metaproteome/
+  
+  const queryString = window.location.search;
+  const urlParams = new URLSearchParams(queryString);
+  const sample = urlParams.get('sample');
+  const project = urlParams.get('project');
+
+  if (project) { // project page
+      document.getElementById('top').style.display = "none";
+      document.getElementById('project').style.display = "block";
+      document.getElementById('sample').style.display = "none";
+
+      // Stanza に api を渡す
+      document.getElementById('project_id').innerHTML = "Project: " + project;
+      document.getElementById('dataset_table').setAttribute("data-url", "https://tools.jpostdb.org/rest_metaproteome/api/dataset?project=" + project);
+
+      // project によって grouping の数が不定なので Stanza グラフ部分全体を JS で append
+      const renderProject = async () => {
+	  const project_meta = await fetch("https://tools.jpostdb.org/rest_metaproteome/api/project?project=" + project).then(r => r.json());
+	  const groups = project_meta.groups;
+	  
+	  const graphs = [
+	      {
+		  label: "Peptides",
+		  api: "https://tools.jpostdb.org/rest_metaproteome/api/metalab_peptide?project=" + project + "&group=",
+		  unit: ""
+	      },{
+		  label: "Phylum",
+		  api: "https://tools.jpostdb.org/rest_metaproteome/api/metalab_phylum?project=" + project + "&group=",
+		  unit: "%"
+	      },{
+		  label: "EC",
+		  api: "https://tools.jpostdb.org/rest_metaproteome/api/metalab_function?project=" + project + "&category=EC&group=",
+		  unit: "%"
+	      },{
+		  label: "COG",
+		  api: "https://tools.jpostdb.org/rest_metaproteome/api/metalab_function?project=" + project + "&category=COG&group=",
+		  unit: "%"
+	      },{
+		  label: "eggNOG",
+		  api: "https://tools.jpostdb.org/rest_metaproteome/api/metalab_function?project=" + project + "&category=NOG&group=",
+		  unit: "%"
+	      },{
+		  label: "GO: biological process",
+		  api: "https://tools.jpostdb.org/rest_metaproteome/api/metalab_go?project=" + project + "&go=0008150&group=",
+		  unit: "%"
+	      },{
+		  label: "GO: molecular function",
+		  api: "https://tools.jpostdb.org/rest_metaproteome/api/metalab_go?project=" + project + "&go=0003674&group=",
+		  unit: "%"
+	      },{
+		  label: "GO: cellular component",
+		  api: "https://tools.jpostdb.org/rest_metaproteome/api/metalab_go?project=" + project + "&go=0005575&group=",
+		  unit: "%"
+	      }
+	  ];
+
+	  let div = document.getElementById("project");
+	  for (let d of graphs) {
+	      let h2 = document.createElement("h2");
+	      h2.innerHTML = d.label;
+	      div.appendChild(h2);
+	      let flex = document.createElement("div");
+	      flex.classList.add("flex");
+	      div.appendChild(flex);
+	      for (let g of groups) {
+		  let graph_div = document.createElement("div");
+		  flex.appendChild(graph_div);
+		  let h3 = document.createElement("h3");
+		  h3.innerHTML = g;
+		  graph_div.appendChild(h3);
+		  let stanza = document.createElement("togostanza-barchart");
+		  stanza.classList.add("multi");
+		  stanza.setAttribute("data-url", d.api + g);
+		  stanza.setAttribute("data-type", "json");
+		  stanza.setAttribute("axis-x-title", "");
+		  stanza.setAttribute("axis-x-key", "sample");
+		  stanza.setAttribute("axis-x-placement", "bottom");
+		  stanza.setAttribute("axis-x-title_padding", "25");
+		  stanza.setAttribute("axis-x-ticks_label_angle", "-45");
+		  stanza.setAttribute("axis-x-ticks_labels_format", ",.2r");
+		  stanza.setAttribute("axis-y-title", "");
+		  stanza.setAttribute("axis-y-key", "value");
+		  stanza.setAttribute("axis-y-placement", "left");
+		  stanza.setAttribute("axis-y-title_padding", "40");
+		  stanza.setAttribute("axis-y-ticks_label_angle", "0");
+		  stanza.setAttribute("group-key", "category");
+		  stanza.setAttribute("group-arrangement", "stacked");
+		  stanza.setAttribute("node-color_key", "color");
+		  stanza.setAttribute("tooltip", "<span>{{category}}: {{label}}<br>{{show_value}} " + d.unit + "</span>");
+		  graph_div.appendChild(stanza);
+	      }
+	  }
+      };
+      
+      renderProject();	    
+      
+  } else if (sample) { // sample page
+      document.getElementById('top').style.display = "none";
+      document.getElementById('project').style.display = "none";
+      document.getElementById('sample').style.display = "block";
+
+      // Stanza にapi を渡す
+      document.getElementById('sample_id').innerHTML = "Sample: " + sample;
+      document.getElementById('metadata').setAttribute("data-url", "https://tools.jpostdb.org/rest_metaproteome/api/dataset?sample=" + sample);
+      document.getElementById('taxonomy').setAttribute("data-url", "https://tools.jpostdb.org/rest_metaproteome/api/metalab_taxonomy_tree?sample=" + sample);
+      document.getElementById('ko_list').setAttribute("href", "https://tools.jpostdb.org/rest_metaproteome/api/metalab_ko?sample=" + sample);
+      document.getElementById('protein_table').setAttribute("data-url", "https://tools.jpostdb.org/rest_metaproteome/api/pass_through_tsv?sample=" + sample);
+
+      // 数と位置が固定なのでグラフ Stanza の中身だけ挿入 (stanza パラメータで html 部分が長くなるので外だし)
+      const graphs = [
+	  {
+	      id: "ec",
+	      api: "https://tools.jpostdb.org/rest_metaproteome/api/metalab_function?category=EC&sample=" + sample,
+	      unit: "%"
+	  },{
+	      id: "cog",
+	      api:  "https://tools.jpostdb.org/rest_metaproteome/api/metalab_function?category=COG&sample=" + sample,
+	      unit: "%"
+	  },{
+	      id: "nog",
+	      api: "https://tools.jpostdb.org/rest_metaproteome/api/metalab_function?category=NOG&sample=" + sample,
+	      unit: "%"
+	  },{
+	      id: "go_bp",
+	      api: "https://tools.jpostdb.org/rest_metaproteome/api/metalab_go?go=0008150&sample=" + sample,
+	      unit: "%"
+	  },{
+	      id: "go_mf",
+	      api: "https://tools.jpostdb.org/rest_metaproteome/api/metalab_go?go=0003674&sample=" + sample,
+	      unit: "%"
+	  },{
+	      id: "go_cc",
+	      api: "https://tools.jpostdb.org/rest_metaproteome/api/metalab_go?go=0005575&sample=" + sample,
+	      unit: "%"
+	  }
+      ];
+
+      for (let d of graphs) {
+	  let stanza = document.getElementById(d.id);
+	  stanza.classList.add("single");
+	  stanza.setAttribute("data-url", d.api);
+	  stanza.setAttribute("data-type", "json");
+	  stanza.setAttribute("axis-x-title", "");
+	  stanza.setAttribute("axis-x-key", "sample");
+	  stanza.setAttribute("axis-x-placement", "bottom");
+	  stanza.setAttribute("axis-x-title_padding", "25");
+	  stanza.setAttribute("axis-x-ticks_label_angle", "0");
+	  stanza.setAttribute("axis-x-ticks_labels_format", ",.2r");
+	  stanza.setAttribute("axis-y-title", "");
+	  stanza.setAttribute("axis-y-key", "value");
+	  stanza.setAttribute("axis-y-placement", "left");
+	  stanza.setAttribute("axis-y-title_padding", "40");
+	  stanza.setAttribute("axis-y-ticks_label_angle", "0");
+	  stanza.setAttribute("group-key", "category");
+	  stanza.setAttribute("group-arrangement", "stacked");
+	  stanza.setAttribute("node-color_key", "color");
+	  stanza.setAttribute("tooltip", "<span>{{category}}: {{label}}<br>{{show_value}} " + d.unit + "</span>");
+      }
+  } else { // top page
+      document.getElementById('top').style.display = "block";
+      document.getElementById('project').style.display = "none";
+      document.getElementById('sample').style.display = "none";
+
+      // Stanza にapi を渡す
+      document.getElementById('project_table').setAttribute("data-url", "https://tools.jpostdb.org/rest_metaproteome/api/project");
+  }
+  
+</script>
+
+</body>
+</html>

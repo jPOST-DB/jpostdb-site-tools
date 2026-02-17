@@ -1,0 +1,220 @@
+#!/usr/bin/env perl
+
+use strict;
+use CGI;
+use JSON;
+use IO::Socket::SSL;
+use LWP::Simple;
+use AnyEvent;
+use AnyEvent::HTTP;
+
+my $query = new CGI;
+my $limit = $query -> param('limit');
+my $sparqlist = $query -> param('sparqlist');
+my $format = $query -> param('format');
+
+my $tax = $query -> param('tax');
+my $dataset = $query -> param('dataset');
+my $options = "";
+$options .= "&dataset=".$dataset if($dataset);
+$options .= "&tax=".$tax if($tax);
+
+my $uniq = $query -> param('uniq');
+
+my $debug = 0;
+if($debug){
+    $sparqlist = "download_pep_list";
+    $tax = "9606";
+    $uniq = 1;
+  #  $limit = 100000;
+    $format = "text";
+}
+
+our $print_first = 0;
+our %chk;
+my $out_lock = 0;
+my $dir = "/var/www/html/tools/api/tmp/";
+my $now = time();
+my $file = $dir.$sparqlist."_".$format."_".$tax."_".$uniq;
+if(-f $file){
+    my @stat = stat($file);
+    system("rm ${file}") if($now - $stat[9] > 86400);  # 1 remake/ 1 day
+}
+    
+if(-f $file){
+    print "Content-Type: application/json; charset=utf-8\n\n" if($format eq "json");
+    print "Content-Type: text/plain; charset=utf-8\n\n" if($format eq "text");
+    open(DATA, $file);
+    print <DATA>;
+    close DATA;
+    exit 0;
+}
+    
+open(OUT, "> ".$file);
+
+$limit = 100000 if(!$limit || $limit < 0 || $limit > 500000);
+$format = "json" if($format ne "json" && $format ne "text");
+exit 0 if(!$sparqlist);
+
+#my $api = "https://tools.jpostdb.org/rest/api/";
+my $api = "http://localhost:3017/rest/api/";
+
+my $json;
+my $loop;
+#### get peptide list per dataset (virtuoso slow sort(ORDER) occurs proxy-timeout)
+if($sparqlist eq "download_pep_list"){
+    $json = decode_json(get($api."download_tax_dataset_list?tax=".$tax));
+}else{  #### other
+    # get rough estimated lines
+    $json = decode_json(get($api.$sparqlist."?count=1".$options));
+    my $count = $json->{results}->{bindings}[0]->{count}->{value};
+    $loop = int($count / $limit) + 1;
+}
+
+# async
+my @result;
+my $cv = AE::cv {
+    if($uniq == 1 && $sparqlist eq "download_pep_list"){
+	my @s = sort{$a cmp $b}(keys(%chk));
+	if($format eq "json"){
+	    my $i = 0;
+	    my $comma = "";
+	    foreach my $seq (@s){
+		$comma = "," if($i > 0);
+		print $comma. to_json($chk{$seq});
+		print OUT $comma, to_json($chk{$seq});
+		$i++;
+	    }
+	}elsif($format eq "text"){
+	    foreach my $seq (@s){
+		print join("\t", @{$chk{$seq}}), "\n";
+		print OUT join("\t", @{$chk{$seq}}), "\n";
+	    }
+	}
+    }
+};
+
+if($sparqlist eq "download_pep_list"){
+    my $i = 0;
+    foreach my $el (@{$json}){
+	my $num = $i;
+	$i++;
+	$dataset = $el->{dataset_id}->{value};
+	my $guard;
+	#print STDERR $api.$sparqlist."_ds?dataset=".$dataset."\n";
+	$cv->begin;
+	$guard = http_get $api.$sparqlist."_ds?dataset=".$dataset, sub {
+	    my ($body, $headers) = @_;
+	    while($out_lock){ usleep(500); }
+	    $out_lock = 1;
+	    &printout($format, decode_json($body));
+	    $out_lock = 0;
+	    undef $guard;
+	    $cv->end;
+	}
+    }
+    $cv->recv;
+}else{
+    for(my $i = 0; $i < $loop; $i++){
+	my $num = $i;
+	my $offset = $num * $limit;
+	my $guard;
+	$cv->begin;
+	$guard = http_get $api.$sparqlist."?limit=".$limit."&offset=".$offset.$options, sub {
+	    my ($body, $headers) = @_;
+	    while($out_lock){ usleep(500); }
+	    $out_lock = 1;
+	    &printout($format, decode_json($body));
+	    $out_lock = 0;
+	    undef $guard;
+	    $cv->end;
+	}
+    }
+    $cv->recv;
+}
+
+if($format eq "json"){
+    print "]";
+    print OUT "]";
+}
+
+close OUT;
+system("chmod 666 ${file}");
+
+sub printout {
+    my ($format, $obj) = @_;
+    if($format eq "json"){
+	if($print_first == 0){
+	    $print_first = 1;
+	    print "Content-Type: application/json; charset=utf-8\n\n";
+	    print "[";
+	    print OUT "[";
+	}
+	if($uniq == 1 && $sparqlist eq "download_pep_list"){
+	    foreach my $line (@{$obj->{results}->{bindings}}){
+		my $seq = $line->{sequence}->{value};
+		if(!$chk{$seq}){
+		    $chk{$seq} = $line;
+		}else{
+		    my $f = 0;
+		    my $count = $chk{$seq}->{psm_count}->{value} + $line->{psm_count}->{value}; # psm_count
+		    if($chk{$seq}->{best_jpost_score}->{value} < $line->{best_jpost_score}->{value}){  # max jpost score
+			$f = 1;
+		    }elsif($chk{$seq}->{best_jpost_score}->{value} == $line->{best_jpost_score}->{value}){
+			 if($chk{$seq}->{psm_level_global_frd}->{value} < $line->{psm_level_global_fdr}->{value}){ # min FDR
+			     $f = 1;
+			 }elsif($chk{$seq}->{psm_level_global_frd}->{value} == $line->{psm_level_global_fdr}->{value}
+				&& $chk{$seq}->{dataset_id}->{value} lt $line->{dataset_id}->{value}){ # min dataset id
+			     $f = 1;
+			 }
+		    }
+		    $chk{$seq} = $line if($f);
+		    $chk{$seq}->{psm_count}->{value} = $count;  # psm_count
+		}
+	    }
+	}else{
+	    my $text = to_json($obj->{results}->{bindings});
+	    $text =~ s/^\s*\[//g;
+	    $text =~ s/\]\s*$//g;
+	    print $text;
+	    print OUT $text;
+	}
+    }elsif($format eq "text"){
+	if($print_first == 0){
+	    $print_first = 1;
+	    print "Content-Type: text/plain; charset=utf-8\n\n";
+	    print join("\t", @{$obj->{head}->{vars}}),"\n";
+	    print OUT join("\t", @{$obj->{head}->{vars}}),"\n";
+	}
+	foreach my $line (@{$obj->{results}->{bindings}}){
+	    my @list;
+	    foreach my $var (@{$obj->{head}->{vars}}){
+		push(@list, $line->{$var}->{value});
+	    }
+	    if($uniq == 1 && $sparqlist eq "download_pep_list"){
+		my $seq = $line->{sequence}->{value};
+		if(!@{$chk{$seq}}[0]){
+		    #print join("\t", @list),"\n";
+		    @{$chk{$seq}} = @list;
+		}else{
+		    my $f = 0;
+		    my $count = ${$chk{$seq}}[4] + $list[4]; # psm_count
+		    if(${$chk{$seq}}[1] < $list[1]){  # max jpost score
+			$f = 1;
+		    }elsif(${$chk{$seq}}[1] == $list[1]){
+			 if(${$chk{$seq}}[2] < $list[2]){ # min FDR
+			     $f = 1;
+			 }elsif(${$chk{$seq}}[2] == $list[2] && ${$chk{$seq}}[3] lt $list[3]){ # min dataset id
+			     $f = 1;
+			 }
+		    }
+		    @{$chk{$seq}} = @list if($f);
+		    ${$chk{$seq}}[4] = $count;  # psm_count
+		}
+	    }else{
+		print join("\t", @list), "\n";
+		print OUT join("\t", @list), "\n";
+	    }
+	}
+    }
+}

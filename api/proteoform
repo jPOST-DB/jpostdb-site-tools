@@ -1,0 +1,79 @@
+#!/usr/bin/env perl
+
+use strict;
+use CGI;
+use JSON;
+use IO::Socket::SSL;
+use LWP::Simple;
+use Fcntl ':flock';
+
+my $query = new CGI;
+my $uniprot = $query -> param('uniprot');
+my $dataset = $query -> param('dataset');
+
+my $debug = 0;
+if($debug){
+    $uniprot = "P01111";
+    $dataset = "DS810_1 DS811_1 DS12_1"
+}
+
+my $thresh = 1; # first thresh (2nd thresh in jpostdb.proteoform_browser.js)
+my $ghostx = "/usr/local/bin/ghostz";
+my $api = "https://tools.jpostdb.org/rest/api/";
+my $r = time . "_" . int(rand(1000000)) . "_" . int(rand(1000000));
+my $d = "./tmp/d".$r;
+my $q = "./tmp/q".$r;
+
+# get proteoform data
+my $json = decode_json(get($api."get_proteoform_data?uniprot=".$uniprot."&dataset=".$dataset));
+
+my $exon;
+my %db;
+open(OUTQ, "> ".$q);
+open(OUTD, "> ".$d);
+foreach my $up (@{$json->{seq}}){
+    my $up_id = $up->{up}->{value};
+    if($up_id eq $uniprot){
+	print OUTQ ">".$up_id."\n";
+	    print OUTQ $up->{seq}->{value}."\n";
+	my $json_ex = decode_json(get($api."get_exon_info?uniprot=".$up_id));
+	push(@{$exon}, $json_ex);
+    }else{
+	print OUTD ">".$up_id."\n";
+	print OUTD $up->{seq}->{value}."\n";
+	$db{$up_id} = 1;
+    }
+}
+close OUTQ;
+close OUTD;
+
+system($ghostx." db -i ".$d." -o ".$d."x > /dev/null");
+system($ghostx." aln -i ".$q." -d ".$d."x -b 1000 -o ".$q."o > /dev/null");
+my $out = `cut -f 2,11 ${q}o`;
+
+system("rm ".$d."* ".$q."*");
+
+my $list;
+foreach my $line (split(/\n/, $out)){
+    my @a = split(/\t/, $line);
+    my $obj;
+    $obj->{up} = $a[0];
+    $obj->{eval} = $a[1];
+    push(@{$list}, $obj);
+    if($a[1] <= $thresh){
+	my $json_ex = decode_json(get($api."get_exon_info?uniprot=".$a[0]));
+	push(@{$exon}, $json_ex);
+	delete($db{$a[0]});
+    }
+}
+foreach my $up (keys(%db)){
+    my $obj;
+    $obj->{up} = $up;
+    $obj->{eval} = 1;
+    push(@{$list}, $obj);
+    my $json_ex = decode_json(get($api."get_exon_info?uniprot=".$up));
+    push(@{$exon}, $json_ex);
+}
+
+print "Content-Type: application/json; charset=utf-8\n\n";
+print to_json({"list" => $list, "data" => $json, "exon" => $exon});

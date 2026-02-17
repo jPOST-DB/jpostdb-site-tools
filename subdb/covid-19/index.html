@@ -1,0 +1,139 @@
+<html>
+<head>
+  <link rel="stylesheet" href="css/sunset.css">
+  <script type="module" src="https://togostanza.github.io/metastanza/pagination-table.js" async></script>
+  <script src="https://cdn.jsdelivr.net/npm/@webcomponents/webcomponentsjs@1.3.0/webcomponents-hi.js"></script>
+  <link rel="import" href="https://tools.jpostdb.org/ts/stanza/protein_browser_covid19/">
+  <style>
+    body {
+	margin:0px;
+    }
+    h1 {
+	width:100%;
+	height:80px;
+	margin:0px;
+	background-color:#f25562;
+    }
+    h1 a {
+	color:#ffffff;
+	text-decoration:none;
+	margin: 10px;
+    }
+    div#main {
+	margin: 8px;
+    }
+    hr.section {
+	width: 50%;
+	height: 10px;
+	border: 0;
+	background-color: #f25562;
+	margin-left: -8px;
+	margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1><a href="https://tools.jpostdb.org/subdb/covid-19/">COVID19 proteome</a></h1>
+  <div id="main">
+  <div id="dataset">
+    <h2>Datasets</h2>
+    <hr class="section" align="left">
+    <div class="stanza">
+<togostanza-pagination-table
+  data-url="https://tools.jpostdb.org/subdb/covid-19/json/datasets.json"
+  data-type="json"
+  custom-css-url=""
+  padding="0px"
+  page-size-option="20,50,100"
+  page-slider="true"
+  columns="[{&quot;id&quot;:&quot;pxd&quot;,&quot;label&quot;: &quot;PXD&quot;, &quot;rowspan&quot;: true},{&quot;id&quot;:&quot;title&quot;,&quot;label&quot;:&quot;Description&quot;,&quot;link&quot;:&quot;publication&quot;, &quot;rowspan&quot;: true},{&quot;id&quot;:&quot;id&quot;,&quot;label&quot;:&quot;Dataset&quot;,&quot;link&quot;:&quot;page&quot;,&quot;target&quot;:&quot;self&quot;},{&quot;id&quot;:&quot;host_taxonomy_label&quot;, &quot;label&quot;: &quot;Host&quot;},{&quot;id&quot;:&quot;host_cell_line&quot;,&quot;label&quot;:&quot;Cell line&quot;},{&quot;id&quot;:&quot;host_psms&quot;,&quot;label&quot;:&quot;# host PSMs&quot;,&quot;align&quot;:&quot;right&quot;,&quot;type&quot;:&quot;number&quot;},{&quot;id&quot;:&quot;covid19_psms&quot;,&quot;label&quot;:&quot;# SARS_CoV_2 PSMs&quot;,&quot;type&quot;:&quot;number&quot;,&quot;align&quot;:&quot;right&quot;,&quot;type&quot;:&quot;number&quot;}]"
+  ></togostanza-pagination-table>
+    </div>
+  </div>
+  
+  <div id="protein" style="display:none;">
+    <h2>SARS-CoV-2 proteins</h2>
+    <hr class="section" align="left">
+    <h3 id="dataset_id"><h3>
+    <div class="stanza">
+    <togostanza-pagination-table
+  data-url=""
+  data-type="json"
+  custom-css-url=""
+  padding="0px"
+  page-size-option="10,20,50,100"
+  page-slider="true"
+  columns="[{&quot;id&quot;:&quot;id&quot;,&quot;label&quot;: &quot;Accession&quot;,&quot;link&quot;:&quot;url&quot;},{&quot;id&quot;:&quot;label&quot;, &quot;label&quot;: &quot;Protein name&quot;},{&quot;id&quot;:&quot;mnemonic&quot;, &quot;label&quot;:&quot;Mnemonic&quot;},{&quot;id&quot;:&quot;peptides&quot;,&quot;label&quot;:&quot;# peptides&quot;,&quot;link&quot;:&quot;page&quot;,&quot;target&quot;:&quot;self&quot;,&quot;align&quot;:&quot;right&quot;,&quot;type&quot;:&quot;number&quot;}]"
+      ></togostanza-pagination-table>
+    </div>
+  </div>
+  
+  <div id="peptide" style="display:none;">
+    <h2>SARS-CoV-2 peptides</h2>
+    <hr class="section" align="left">
+    <h3 id="uniprot_id"><h3>
+    <div class="stanza">
+    <togostanza-protein_browser_covid19 dataset='PXD019645-5'uniprot='P0DTC1'></togostanza-protein_browser_covid19>
+    <togostanza-pagination-table
+  data-url=""
+  data-type="json"
+  custom-css-url=""
+  padding="0px"
+  page-size-option="10,20,50,100"
+  page-slider="true"
+  columns="[{&quot;id&quot;:&quot;sequence&quot;, &quot;label&quot;:&quot;Sequence&quot;},{&quot;id&quot;:&quot;position&quot;, &quot;label&quot;: &quot;Position&quot;,&quot;align&quot;:&quot;right&quot;,&quot;type&quot;:&quot;number&quot;},{&quot;id&quot;:&quot;mutation&quot;, &quot;label&quot;: &quot;Mutation&quot;},{&quot;id&quot;:&quot;psms&quot;, &quot;label&quot;:&quot;# PSMs&quot;,&quot;align&quot;:&quot;right&quot;,&quot;type&quot;:&quot;number&quot;}]"
+      ></togostanza-pagination-table>
+    </div>
+  </div>
+  </div>
+
+  <script type="text/javascript">
+
+    const protein_div = document.getElementById("protein");
+    const protein_table = protein_div.getElementsByTagName("togostanza-pagination-table")[0];
+    const peptide_div = document.getElementById("peptide");
+    const peptide_table = peptide_div.getElementsByTagName("togostanza-pagination-table")[0];
+    const browser = peptide_div.getElementsByTagName("togostanza-protein_browser_covid19")[0];
+    const dataset_id = document.getElementById("dataset_id");
+    const uniprot_id = document.getElementById("uniprot_id");
+    
+    const openProtein = (dataset) => {
+	console.log(protein_div);
+	console.log(protein_table);
+	protein_table.setAttribute("data-url", "https://tools.jpostdb.org/subdb/covid-19/json/" + dataset + "_covid19.json");
+	dataset_id.innerText = "Dataset: " + dataset;
+	protein_div.style.display = "block";
+	peptide_div.style.display = "none";
+	document.documentElement.scrollTop = protein_div.getBoundingClientRect().top + window.pageYOffset;
+    }
+
+    const openPeptide = (dataset, protein) => {
+	peptide_table.setAttribute("data-url", "https://tools.jpostdb.org/subdb/covid-19/json/" + dataset + "_" + protein + ".json");
+	browser.setAttribute("dataset", dataset);
+	browser.setAttribute("uniprot", protein);
+	uniprot_id.innerText = "UniProt: " + protein;
+	peptide_div.style.display = "block";
+	document.documentElement.scrollTop = peptide_div.getBoundingClientRect().top + window.pageYOffset;
+	console.log(peptide_div.getBoundingClientRect().top + window.pageYOffset);
+    }
+
+    let dataset;
+    console.log(location.search);
+    for (let d of location.search.replace(/^\?/, "").split(/&/)) {
+	console.log(d);
+	let kv = d.split(/=/);
+	if (kv[0] == "dataset") {
+	    dataset = kv[1];
+	    openProtein(dataset);
+	} else if (kv[0] == "protein") {
+	    openPeptide(dataset, kv[1]);
+	}
+    }
+  </script>
+    
+</body>
+</html>
+
+
+

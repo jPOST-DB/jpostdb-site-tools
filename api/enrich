@@ -1,0 +1,483 @@
+#!/usr/bin/env perl
+
+# Req. R (Fisher's exact test)
+
+use strict;
+use CGI;
+use JSON;
+use IO::Socket::SSL;
+use LWP::UserAgent;
+use Fcntl ':flock';
+
+my $query = new CGI;
+my $data = $query -> param('data');
+my $enrich = $query -> param('e');
+my $target = $query -> param('target');
+my $thresh = $query -> param('thresh');
+
+my $ua = LWP::UserAgent->new;
+
+# for GO viewer
+$data =~ s/^#[^\n\r]*[\n\r]//;
+$data =~ s/[\n\r]+/_/g;
+$data =~ s/[ \t]+/:/g;
+
+my $debug = 0;
+$debug= $query -> param('debug') if($query -> param('debug'));
+if($debug){
+    $target = "ko";
+    $enrich = 1;
+    $data = "P02751:10.626_Q14764:9.4133_P24821:9.4122_Q9NZM1:9.3456_P12111:9.2874_Q6YHK3:8.8628_P08473:8.4169_P12110:8.4026_Q15582:8.0929_P35555:7.9731_Q9Y6N5:7.9682_Q6UVK1:7.8775_Q6NZI2:7.6455_P08123:7.5374_Q3SY69:7.4226_P08648:7.252_Q12884:7.006_Q9NZN3:6.9585_Q8IWE2:6.9_Q9UKK3:6.7781_Q6EMK4:6.6718_Q96D15:6.6402_Q6PIU2:6.5223_P21980:6.4098_Q96CX2:6.403_Q96CV9:6.3758_P07093:6.1666_P41219:6.1533_P17931:6.0846_Q9HBL0:6.0697_P26447:5.9618_P50416:5.7858_P02461:5.7812_Q8NEU8:5.7578_Q13425:5.7448_P53801:5.4735_Q9H4M9:5.4658_Q8WX93:5.4632_Q3KQV9:5.4129_Q4V9L6:5.4103_Q9UHL4:5.3983_P00533:5.316_Q13443:5.1797_P35052:5.1697_Q9NX02:-5.1655_P20810:5.1466_Q13976:5.1369_Q8WUH6:5.0706_O94804:5.0309_P08962:4.971_O60826:4.9558_Q16134:4.8896_Q92508:4.8691_P50479:4.8683_Q86X83:4.8284_P30536:4.8108_O94919:4.7685_P13716:4.7267_P42226:4.6919_Q9UHQ9:4.4784_Q765P7:4.4554_Q96JY6:4.3956_P49441:4.3849_Q9C0H2:4.3742_P23743:4.3207_P80217:4.3138_Q9HD26:4.3066_Q9Y4D7:4.3063_Q9H173:4.2772_P51688:4.2696_Q6NYC8:4.2534_Q5EBL4:4.2381_O14495:4.1865_P21266:4.1582_Q13325:4.1551_Q9Y6I9:4.1221_Q96HD1:4.0913_O75962:4.0571_P51808:4.0131_Q08426:4.0121_Q03518:3.9261_Q7Z6B7:3.8881_Q96JC1:3.849_Q709C8:3.8316_Q5HYC2:3.8074_Q5T0D9:3.7718_Q86UU1:3.7614_Q8N3D4:3.7332_Q567U6:3.6531_Q9H5N1:3.6356_O15230:-3.5988_P49418:3.5938_Q9NVU7:-3.5116_Q9Y6K9:3.5049_O14657:3.4946_O95070:3.4939_Q9Y5U8:3.4578_Q5T7P8:-3.4441_P05121:3.4382_Q9NYL2:3.435_P51531:-3.4153_Q96BX8:3.4048_Q8IY95:3.3999_P51805:3.3678_Q9H7Z6:-3.3361_Q6STE5:-3.3219_Q86VM9:-3.2738_Q96CM8:3.2665_P35475:3.2381_P81877:-3.1573_P51553:3.1097_Q9NQS7:-3.0889_Q9NRY6:3.0602_O43149:3.0358_Q8TB36:-2.9943_P18433:2.969_O75829:-2.911_Q9NX08:2.9096_Q8TEW0:-2.9007_Q9Y4Z0:-2.9002_O95785:-2.8927_P49903:-2.8885_Q6ZVM7:2.8884_A0A0B4J1V8:-2.8532_Q13554:2.8319_Q96FZ7:2.8306_O15254:2.8157_Q68CQ7:2.7974_Q9Y2W6:-2.7868_Q8NI60:-2.78_Q86YR5:2.7618_Q9BZL4:2.7474_P52435:-2.7225_Q9BU61:-2.721_Q96MU7:-2.7079_Q9HAN9:2.6356_Q0JRZ9:2.6208_O15182:-2.6092_Q5TC12:-2.5879_P05997:2.585_Q9BVI4:-2.5831_Q8WYB5:-2.5714_Q6P9B9:-2.5544_Q6P4F2:2.548_P06681:2.548_I6MBV4:2.5206_Q15007:-2.4943_Q5T6V5:2.4767_Q9Y6R0:2.4698_P31751:2.458_Q9NWZ8:-2.4534_Q01831:-2.4481_Q6P1M0:2.4433_Q9H9Y2:-2.4096_Q8IWB9:2.39_Q9P2G1:2.39_O75695:2.3701_Q53FA7:2.3597_O14715:-2.2712_Q9NX24:-2.2647_P51798:2.2583_Q6P158:-2.2516_Q9P0M9:-2.2378_P11234:2.2238_Q9NZN5:2.195_Q92947:-2.1831_P19012:-2.1633_Q15428:-2.1458_A0A0A7KU15:2.1425_Q15836:2.1256_Q9Y221:-2.118_Q8WXA3:2.1133_Q9UG56:-2.0805_Q8N357:2.0763_P14678:-2.039_Q92769:-2.0021_Q14865:2_O96004:1.9534_Q6UN15:-1.9484_Q9BV38:-1.9483_O96019:-1.9435_Q9NP77:-1.9352_Q9P0S9:-1.911_Q15532:-1.8962_Q8WY07:-1.8804_Q76I76:1.8617_Q13601:-1.8451_P62834:1.8166_Q5VT25:1.8061_Q8WYA6:-1.8001_Q9BXR0:-1.7863_Q9ULR0:-1.7823_Q96J02:1.7816_P05026:-1.7809_P81133:1.7233_Q99459:-1.7196_Q9P0U1:-1.7124_Q9Y5A7:-1.6962_A4UGR9:-1.6887_O96008:-1.6876_Q15233:-1.6833_P18754:-1.6705_P23434:-1.6484_Q8TAQ2:-1.6259_Q9UHA3:-1.6068_Q9H3M7:1.585_P0CZ25:-1.585_A7E2V4:1.585_Q15119:-1.585_O43251:-1.5819_Q8WTV0:1.5646_Q8NI77:-1.5425_O14925:-1.5219_P68431:-1.514_Q12981:1.5006_Q9BTC0:-1.4758_Q9UK59:-1.4518_Q14739:-1.4447_Q9BRP8:-1.4201_Q7L523:1.3799_Q01130:-1.323_P11182:-1.316_P62306:-1.2953_Q9P0Z9:-1.29_Q9Y3D5:-1.2608_Q9BYT8:-1.2603_Q9H078:-1.24_O43818:-1.2271_P52272:-1.2267_Q9HAU5:-1.215_Q86Y46:1.2093_P62304:-1.1991_Q9Y2X3:-1.1828_Q15773:-1.161_P31483:-1.1329_Q9Y5L4:-1.1072_P17735:-1.0805_Q9Y2Z4:-1.0436_Q86Y79:1_Q32MH5:-1_Q9NZJ5:-1_Q9UPP5:-1_Q9Y5U2:-1_Q96MM6:1_Q5T655:-1_Q9BXM0:-1_Q9UIF8:-1_O00213:-1_Q15573:-1_P0CG40:-1_Q8WZA2:1_Q8IZT6:1_Q7Z589:-1_P35670:1_Q9Y3T6:1_A6NFT4:1_Q9BXB1:-1_Q9H0W7:1_P29375:-1_Q86UX7:1";
+}
+
+$thresh = 0.05 unless($thresh);
+
+my $api = "https://tools.jpostdb.org/rest/api/";
+
+## Users UniProt-value list
+my @line = split(/_/, $data);
+my %user_up;
+for(my $i = 0; $i <= $#line; $i++){
+    my @a = split(/:/, $line[$i]);
+    $a[1] = 1 unless($a[1]);
+    $user_up{$a[0]} = $a[1];
+}
+
+#get tax
+my @list = split(/_/, $data);
+my $url = $api."enrich_up_to_tax";
+my $tax = "";
+my $i = 0;
+while(!$tax && $list[$i]){
+    my @tmp = split(/:/, $list[$i]);
+    my %params = (
+	"uniprot" => $tmp[0]
+    );
+
+    my $json = decode_json($ua -> post($url, \%params) -> content);
+    if($json->{results}->{bindings}[0]){
+	$tax = $json->{results}->{bindings}[0]->{tax}->{value};
+	$tax = $1 if($tax =~ /(\d+)$/);
+    }
+    $i++;
+}
+
+my ($nodes, $edges, $r_n, $r_uc, $r_dc, $ut, $dt);
+($nodes, $edges, $r_n, $r_uc, $r_dc, $ut, $dt) = &ko_map($api, $tax, \%user_up) if($target eq "ko");
+($nodes, $edges, $r_n, $r_uc, $r_dc, $ut, $dt) = &go_map($api, $tax, \%user_up, $target) if($target =~ /^go_/);
+
+if($enrich){
+    my $file;
+    $file = &save_dat($r_n, $r_uc, $r_dc, $ut, $dt);
+    
+    my $w = 5;
+    $w = 7 if($target =~ /^go_/);
+    ($nodes, $edges) = &calc_p_val($nodes, $edges, $thresh, $file, $w);
+    system("rm ".$file);
+}
+
+print "Content-Type: application/json; charset=utf-8\n\n";
+print to_json({"nodes" => $nodes, "edges" => $edges});
+
+
+## UniProt-KO list via UniProt RDF
+sub ko_map{
+    my ($api, $tax, $r_user_up) = @_;
+    my %user_up = %{$r_user_up};
+
+    my $url = $api."enrich_tax_to_kegg_genes";
+    my %params = (
+	"tax" => $tax
+	);
+    my $json = decode_json($ua -> post($url, \%params) -> content);
+    
+    my $list = $json->{results}->{bindings};
+    my %up2ko;
+    my %ko2up;
+    my $kegg_org;
+    for(my $i = 0; $i <= $#{$list}; $i++){
+	my $up = ${$list}[$i]->{up}->{value};
+	my $ko = ${$list}[$i]->{gene}->{value};
+	$up =~ s/http:\/\/purl\.uniprot\.org\/uniprot\///;
+	$ko =~ s/http:\/\/purl\.uniprot\.org\/kegg\///;
+        my @tmp = split(/:/, $ko);
+        $kegg_org = $tmp[0];
+        $ko = $tmp[1];
+	$up2ko{$up} = $ko;
+	push(@{$ko2up{$ko}}, $up);
+    }
+    my $db_total = values(%up2ko);
+    
+    ## Users UniProt-value list
+    my %user_up_value;
+    foreach my $key (keys(%user_up)){
+	$user_up_value{$key} = $user_up{$key} if($up2ko{$key});
+    }
+    my $user_total = values(%user_up_value);
+ 
+    ## KEGG Orthology hierarchy file '{kegg_org}000001.keg'
+    my $ko_hier_file = "./tmp/${kegg_org}.hier";
+    my $ko_hier_url = "https://www.kegg.jp/kegg-bin/download_htext?htext=${kegg_org}00001.keg&format=htext&filedir=";
+    
+    my $now = time;
+    if(-f $ko_hier_file){
+	open(DATA, $ko_hier_file);
+	my $file_time = <DATA>;
+	close DATA;
+	if($now - $file_time > 86400){
+
+	    my $res = $ua -> get($ko_hier_url) -> content;
+	    my $text = $now."\n".$res; 
+	  #  my $text = $now."\n".get($ko_hier_url);
+	    open my $fh, '+<', $ko_hier_file or die "$!:($ko_hier_file)"; 
+	    flock $fh, LOCK_EX;
+	    my $counter = <$fh>;
+	    $counter++; 
+	    seek $fh, 0, 0;
+	    print $fh $text;
+	    close $fh;
+	}
+    }else{
+	my $res = $ua -> get($ko_hier_url) -> content;
+	my $text = $now."\n".$res;
+	open(OUT, "> ".$ko_hier_file);
+	print OUT $text;
+	close OUT;
+    }
+
+    my $f = 0;
+    my $a, my $b, my $c;
+    my $id = 0;
+    my $nodes;
+    my $edges;
+    my %chk;
+    my (@r_n, @r_uc, @r_dc);
+    my $obj = {"key" => "KEGG:00000", "term_label" => "KEGG Pathway", "count" => $user_total, "total" => $db_total, "kos" => "", "pvalue" => 2};
+    ${$nodes}{"KEGG:00000"} = $obj;
+    open(DATA, $ko_hier_file);
+    while(<DATA>){
+	chomp($_);
+	$_ =~ s/\<\/*[bB]\>//g;
+	my @str = split(/\[/, $_);
+	$str[0] =~ s/\s+$//g;
+	if(!($str[0] =~ /^D\s+/) && $f == 1){
+	    if(!$chk{$c->{key}}){
+		$chk{$c->{key}} = 1;
+		my $user_c = values(%{$c->{u_up}});
+		if($user_c > 1){
+		    my $db_c = values(%{$c->{d_up}});
+		    my $obj = {"key" => "KEGG:".$c->{key}, "term_label" => $c->{label}, "count" => $user_c, "total" => $db_c, "kos" => join("\n", "#ko value", @{$c->{ko}}), "category_type" => $c->{type}};
+		    ${$nodes}{"KEGG:".$c->{key}} = $obj;
+		    push(@{${$edges}{"KEGG:".$c->{key}}}, "KEGG:".$b->{key});
+		    push(@r_n, $c->{key});
+		    push(@r_uc, $user_c);
+		    push(@r_dc, $db_c);
+		}
+	    }
+	    if(!($str[0] =~ /^C/) && !$chk{$b->{key}}){
+		$chk{$b->{key}} = 1;
+		my $user_c = values(%{$b->{u_up}});
+		if($user_c > 1){
+		    my $db_c = values(%{$b->{d_up}});
+		    my $obj = {"key" => "KEGG:".$b->{key}, "term_label" => $b->{label}, "count" => $user_c, "total" => $db_c, "kos" => ""};
+		    ${$nodes}{"KEGG:".$b->{key}} = $obj;
+		    push(@{${$edges}{"KEGG:".$b->{key}}}, "KEGG:".$a->{key});
+		    push(@r_n, $b->{key});
+		    push(@r_uc, $user_c);
+		    push(@r_dc, $db_c);
+		}
+	    }
+	    if(!($str[0] =~ /^[BC]/) && !$chk{$a->{key}}){
+		$chk{$a->{key}} = 1;
+		my $user_c = values(%{$a->{u_up}});
+		if($user_c > 1){
+		    my $db_c = values(%{$a->{d_up}});
+		    my $obj = {"key" => "KEGG:".$a->{key}, "term_label" => $a->{label}, "count" => $user_c, "total" => $db_c, "kos" => ""};
+		    ${$nodes}{"KEGG:".$a->{key}} = $obj;
+		    push(@{${$edges}{"KEGG:".$a->{key}}}, "KEGG:00000");
+		    push(@r_n, $a->{key});
+		    push(@r_uc, $user_c);
+		    push(@r_dc, $db_c);
+		}
+	    }
+	}
+	if($str[0] =~ /^A(\d{5})\s+(.+)/){
+	    my $key = $1;
+	    my $name = $2;
+	    $a->{key} = $key;
+	    $a->{label} = $name;
+	    $a->{u_up} = {};
+	    $a->{d_up} = {};
+	    $b->{u_up} = {};
+	    $c->{u_up} = {};
+	}elsif($str[0] =~ /^B\s+(\d{5})\s+(.+)/){
+	    my $key = $1;
+	    my $name = $2;
+	    next if($name eq "Overview");
+	    $f = 1 if($name ne "Overview");
+	    $b->{key} = $key;
+	    $b->{label} = $name;
+	    $b->{u_up} = {};
+	    $b->{d_up} = {};
+	    $c->{u_up} = {};
+	}elsif($str[0] =~ /^C\s+(\d{5})\s+(.+)/){
+	    my $key = $1;
+	    my $name = $2;
+	    $c->{key} = $key;
+	    $c->{label} = $name;
+	    $c->{u_up} = {};
+	    $c->{d_up} = {};
+	    $c->{ko} = ();
+	    my $type = "N/A";
+	    if($str[1]){
+		my @tmp = split(/:/, $str[1]);
+		$type = $tmp[0] if($tmp[0]);
+	    }
+	    $c->{type} = $type;
+	}elsif($str[0] =~ /^D\s+(\S+)/ && $f == 1){
+	    my $ko = $1;
+	    my $value = 0;
+	    foreach my $up (@{$ko2up{$ko}}){
+		$a->{d_up}->{$up} = 1;
+		$b->{d_up}->{$up} = 1;
+		$c->{d_up}->{$up} = 1;
+		if($user_up_value{$up}){
+		    if(($value >= 0 && $user_up_value{$up} > 0 && $user_up_value{$up} > $value)
+		       || ($value >= 0 &&  $user_up_value{$up} < 0 && $user_up_value{$up} * (-1) > $value)
+		       || ($value < 0 &&  $user_up_value{$up} > 0 && $user_up_value{$up} > $value * (-1))
+		       || ($value < 0 &&  $user_up_value{$up} < 0 && $user_up_value{$up} < $value)){
+			$value = $user_up_value{$up};
+		    }
+		    $a->{u_up}->{$up} = 1;
+		    $b->{u_up}->{$up} = 1;
+		    $c->{u_up}->{$up} = 1;	    
+		}
+	    }
+	    push(@{$c->{ko}}, $ko." ".$value) if($value != 0);
+	}
+    }
+    close DATA;
+    
+    return ($nodes, $edges, \@r_n, \@r_uc, \@r_dc, $user_total, $db_total);
+}
+
+## UniProt-GO list via UniProt RDF
+sub go_map{
+    my ($api, $tax, $r_user_up, $target) = @_;
+    my %user_up = %{$r_user_up};
+
+    my $go_term = "biological_process";
+    my $go_num = "0008150";
+    if($target eq "go_mf"){
+	$go_term = "molecular_function";
+	$go_num = "0003674";
+    }elsif($target eq "go_cc"){
+	$go_term = "cellular_component";
+	$go_num = "0005575";
+    }
+ 
+    my $url = $api."enrich_go_count";
+    my %params = (
+	"tax" => $tax,
+	"go" => $go_term
+	);
+    my $json = decode_json($ua -> post($url, \%params) -> content);
+
+    my $list = $json->{go};
+    my %db_go_count;
+    for(my $i = 0; $i <= $#{$list}; $i++){
+	if( ${$list}[$i]->{count} > 1){
+	    my $go = ${$list}[$i]->{go};
+	    $db_go_count{$go} = ${$list}[$i]->{count};
+	}
+    }
+    my $db_total = $json->{db_total};
+    
+    ## Users UniProt-value list
+    my %go2name;
+    my %user_go_count;
+    my %user_up_value;
+    my %user_up_value;
+    my @up_list = keys(%user_up);
+
+    my $url = $api."enrich_up_to_go";
+    my $loop = 0;
+    while($loop * 2000 < $#up_list){
+	my $s = $loop * 2000;
+	my $e = ($loop + 1) * 2000 - 1;
+	$loop++;
+	my @sub_a = @up_list[$s..$e];
+	my %params = (
+	    "go" => $go_term,
+	    "up" => join(" ", @sub_a)
+	    );
+	my $json = decode_json($ua -> post($url, \%params) -> content);
+	my $tmp = $json->{list};
+	my $list = $json->{list};
+	for(my $j = 0; $j <= $#{$list}; $j++){
+	    my $go = ${$list}[$j]->{go};
+	    my $up = ${$list}[$j]->{up};
+	    $user_go_count{$go}++;
+	    $go2name{$go} = ${$list}[$j]->{name};
+	    $user_up_value{$up} = $user_up{$up};
+	}
+    }
+
+=pos
+# LWP::Simple get
+    my @ups = "";
+    for(my $i = 0; $i <= $#up_list; $i++){
+	push(@ups, $up_list[$i]);
+	if($i > 0 && $i % 300 == 0 || $i == $#up_list){
+	    
+	    my $json = decode_json(post($api."enrich_up_to_go", "go=".$go_term."&up=".join(" ", @ups)));
+	    my $list = $json->{list};
+	    for(my $j = 0; $j <= $#{$list}; $j++){
+		my $go = ${$list}[$j]->{go};
+		my $up = ${$list}[$j]->{up};
+		$user_go_count{$go}++;
+		$go2name{$go} = ${$list}[$j]->{name};
+		$user_up_value{$up} = $user_up{$up};
+	    }
+    	    @ups = ();
+	}
+   }
+=cut
+    my $user_total = values(%user_up_value);
+    $user_go_count{$go_num} = $user_total;
+    $go2name{$go_num} = $go_term;
+ 
+    my $nodes;
+    my $max = 0;
+    my (@r_n, @r_uc, @r_dc);
+    my @gos;
+    my %chk;
+    foreach my $go (keys(%go2name)){
+	if($db_go_count{$go} > 1 && $user_go_count{$go} > 1){
+	    push(@gos, $go);
+	    $chk{$go} = 1;
+	    my $obj = { "key" => "GO:".$go, "term_label" => $go2name{$go}, "count" => $user_go_count{$go}, "total" => $db_go_count{$go}};
+	    if($go ne $go_num){
+		push(@r_n, $go);
+		push(@r_uc, $user_go_count{$go});
+		push(@r_dc, $db_go_count{$go});
+	    }else{
+		$obj->{pvalue} = 2;
+	    }
+	    ${$nodes}{"GO:".$go} = $obj;
+	}
+    }
+
+    ## go tree
+    my $edges;
+    my $url = $api."enrich_go_net";
+    my %params = (
+	"go" => $go_term
+	);
+    my $list = decode_json($ua -> post($url, \%params) -> content);
+
+    for(my $i = 0; $i <= $#{$list}; $i++){
+	my $child = ${$list}[$i]->{child};
+	my $parent = ${$list}[$i]->{parent};
+	unless($chk{$child}){
+	    $chk{$child} = 1;
+	    my $obj = { "key" => "GO:".$child, "term_label" => ${$list}[$i]->{child_label}, "count" => 1, "total" => 1, "pvalue" => 1};
+	    ${$nodes}{"GO:".$child} = $obj;
+	}
+	unless($chk{$parent}){
+	    $chk{$parent} = 1;
+	    my $obj = { "key" => "GO:".$parent, "term_label" => ${$list}[$i]->{parent_label}, "count" => 1, "total" => 1, "pvalue" => 1};
+	    ${$nodes}{"GO:".$parent} = $obj;
+	}
+	push(@{${$edges}{"GO:".$child}}, "GO:".$parent);
+    }
+    
+    return ($nodes, $edges, \@r_n, \@r_uc, \@r_dc, $user_total, $db_total);
+}
+
+
+sub save_dat{
+    my ($r_n, $r_uc, $r_dc, $user_total, $db_total) = @_;
+    my @n = @{$r_n};
+    my @uc = @{$r_uc};
+    my @dc = @{$r_dc};
+    my $file = "./tmp/p" . time . "_" . int(rand(1000000)) . "_" . int(rand(1000000));
+    open(OUT, "> ". $file);
+    for(my $i = 0; $i <= $#n; $i++){
+	print OUT join("\t", '"'.$n[$i].'"', $uc[$i], $dc[$i], $user_total, $db_total), "\n";
+    }
+    close DATA;
+
+    return $file;
+}
+
+sub calc_p_val{
+    my ($nodes_all, $edges_all, $thresh, $file, $w) = @_;
+    my $command = "Rscript ./script/fisher.r ". $file. " ". $w;
+  
+    my @val = split(/[\n\r]/, `${command}`);
+    my $path2p, my $path2q;
+    for(my $i = 0; $i <= $#val; $i++){
+	chomp($val[$i]);
+	my @a = split(/\t/, $val[$i]);
+	${$path2p}{$a[0]} = sprintf("%.2e", $a[1]);
+	${$path2q}{$a[0]} = sprintf("%.2e", $a[2]);
+    }
+    
+    my $nodes;
+    my $edges;
+    my $key2index;
+    my $index = 0;
+    my $chk;
+    my @keys = keys(%{$nodes_all});
+    for(my $i = 0; $i <= $#keys; $i++){
+	my $target = $keys[$i];
+	my $t_id = $target;
+	$t_id =~ s/^[^\d]+(\d+)$/${1}/;
+	if(${$path2q}{$t_id}){ 
+#	    if(${$path2q}{$t_id} <= $thresh){ # q-value thresh
+		unless(${$chk}{$target}){
+		    ${$chk}{$target} = 1;
+		    my $t_id = $target;
+		    $t_id =~ s/^[^\d]+(\d+)$/${1}/;
+		    if(${$nodes_all}{$target}->{pvalue} != 2){
+			${$nodes_all}{$target}->{pvalue} = ${$path2p}{$t_id};
+			${$nodes_all}{$target}->{qvalue} = ${$path2q}{$t_id};
+		    }
+		    push(@{$nodes}, ${$nodes_all}{$target});
+		    ${$key2index}{$target} = $index;
+		    $index++;
+		    ($nodes, $edges, $chk, $key2index, $index) = &trace($target, $nodes, $edges, $nodes_all, $edges_all, $path2p, $path2q, $chk, $key2index, $index);
+		}
+	    }
+#	}
+    }
+    return $nodes, $edges;
+}
+
+sub trace{
+    my ($target, $nodes, $edges, $nodes_all, $edges_all, $path2p, $path2q, $chk, $key2index, $index) = @_;
+
+    for(my $j = 0; $j <= $#{${$edges_all}{$target}}; $j++){
+	my $source = ${${$edges_all}{$target}}[$j];
+	my $s_id = $source;
+	$s_id =~ s/^[^\d]+(\d+)$/${1}/;
+	unless(${$chk}{$target."_".$source}){
+	    ${$chk}{$target."_".$source} = 1;
+	    unless(${$chk}{$source}){
+		${$chk}{$source} = 1;
+		if(${$nodes_all}{$source}->{pvalue} != 2){
+		    ${$nodes_all}{$source}->{pvalue} = ${$path2p}{$s_id} if(${$path2p}{$s_id});
+		    ${$nodes_all}{$source}->{qvalue} = ${$path2q}{$s_id} if(${$path2q}{$s_id});
+		}
+		push(@{$nodes}, ${$nodes_all}{$source});
+		${$key2index}{$source} = $index;
+		$index++;
+		($nodes, $edges, $chk, $key2index, $index) = &trace($source, $nodes, $edges, $nodes_all, $edges_all, $path2p, $path2q, $chk, $key2index, $index);
+	    }  
+	    my $obj = {"target" => ${$key2index}{$target}, "source" => ${$key2index}{$source}, "width" => "1px", "color" => "black"};    
+	    push(@{$edges}, $obj);
+	}
+    }  
+    return ($nodes, $edges, $chk, $key2index, $index);
+}

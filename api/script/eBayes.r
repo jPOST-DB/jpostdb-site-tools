@@ -1,0 +1,15 @@
+library(limma)
+argv <- commandArgs(trailingOnly=TRUE)
+f1 <- argv[1]
+f2 <- argv[2]
+des <- read.table(f1,sep='\t')
+d <- read.table(f1,header=T,row.name=1,sep='\t')
+d.log2 <- log2(d)
+#design <- cbind(G0=1,G1=c(0,0,0,0,1,1,1,1))
+design <- cbind(G0=1,G1=c(as.numeric(des[1,2:ncol(des)])))
+fit <- lmFit(d.log2,design)
+fit2 <- eBayes(fit)
+tT <- topTable(fit2,coef=2,adjust="fdr",number=100000)
+r <- cbind(tT[5],tT[1])
+write.table(r,sep="\t",quote=F,row.names=T,file="")
+#write.table(tT,file=f2,sep="\t",quote=F,row.names=T,col.names=NA)

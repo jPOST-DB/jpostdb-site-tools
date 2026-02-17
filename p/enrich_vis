@@ -1,0 +1,163 @@
+#!/usr/bin/env perl
+
+use strict;
+use CGI;
+
+my $query = new CGI;
+my $data = '';
+my $exec_enrich = '';
+my %target = (go_bp => 'selected="selected"', go_mf => '', go_cc => '', ko => '');
+my $thresh = "5e-2";
+if($query -> param('data')){
+    $data = $query -> param('data');
+}
+if($query -> param('thresh')){
+    $thresh = $query -> param('thresh');
+}
+if($query -> param('target')){
+    $target{'go_bp'} = '';
+    $target{$query -> param('target')} = 'selected="selected"';
+}
+if($query -> param('exec')){
+    $exec_enrich = 'execEnrich();';
+}
+
+print "Content-Type: text/html; charset=utf-8\n\n";
+
+print <<EOF;
+<html>
+  <head>
+    <title>jPOST tools: enrichment analysis</title>
+    <link href="https://globe.jpostdb.org/css/all.css" rel="stylesheet">    
+    <script type="text/javascript" src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <script type="text/javascript" src="https://tools.jpostdb.org/assets/js/stanza/jpostdb.js" charset="utf-8"></script>
+    <script type="text/javascript" src="https://tools.jpostdb.org/assets/js/stanza/jpostdb.utils.js" charset="utf-8"></script>
+    <script type="text/javascript" src="https://tools.jpostdb.org/assets/js/stanza/jpostdb.img_download.js" charset="utf-8"></script>
+    <script type="text/javascript" src="https://tools.jpostdb.org/assets/js/stanza/jpostdb.slice_comparison.js" charset="utf-8"></script>
+    <style>
+      body {
+        padding: 0px 0px 0px 0px;
+        margin: 0px 0px 0px 0px ;
+        font-size: 14px;
+        color: #555555;
+      }
+      div#header{
+        background-color: #4ea0c9;
+        height: 80px;
+        width: 100%;
+        margin: 0px 0px 0px 0px;
+        color: white;
+      }
+      div#draw_area {
+        position:absolute;
+        top:80px;
+        left:50px;
+      }
+      div#panel {
+        position:absolute;
+        top:180px;
+        left:80px;
+        font-size: 15px;
+      }
+      h1 {
+        margin: 0px 0px 0px 0px;
+        padding: 18px 0px 0px 50px;
+        font-size: 32px;
+      }
+      p.param {
+        margin-left: -16px;
+        margin-bottom: 4px;
+        width: 180px;
+        font-weight: bold;
+      }
+      .form_input {
+        background-color: white;
+        border: solid 2px #4ea0c9;
+        padding-left: 8px;
+        width: 100%;
+      }
+      .form_input_button {
+        color: #4ea0c9;
+        background-color: white;
+        font-weight: bold;
+        border: solid 2px #4ea0c9;
+        width: 85px;
+      }
+      input.downloadButton {
+        color: #4ea0c9;
+        font-weight: bold;
+        border: solid 2px #4ea0c9;
+        background-color: white;
+        cursor: pointer;
+        margin-left: 10px;
+      }
+      span.sample {
+        color: #4ea0c9;
+        cursor: pointer;
+      }
+      div#panel_ctrl {
+        position:absolute;
+        left: 20px;
+        top: 360px;
+        display: inline-block;
+      }
+      p#move_panel {
+        color: #4ea0c9;
+        cursor: pointer;
+        font-size: 40px;
+        line-height: 40px;
+        margin: 0px;
+      }
+    </style>
+  </head>
+  <body>
+
+    <div id="header">
+      <h1>Enrichment analysis</h1>
+    </div>
+    
+    <div id="draw_area">
+      <div id="enrich">
+	<svg id="enrich_svg" width="100%" height="0px" />
+	<div id="dl_button_div"></div>
+	<div id="enrich_table"></div>
+      </div>
+    </div>
+
+    <div id="panel_ctrl">
+      <p id="move_panel" class="fas fa-chevron-circle-left"></p>
+    </div>
+    
+    <div id="panel">
+      <form action="https://tools.jpostdb.org/api/enrich" methon="post">
+      <p class="param">UniProt accession list</p>
+      <textarea id="data" name="data" cols="20" rows="15" class="form_input">${data}</textarea>
+      <p style="margin-top:0px;font-size:12px;">
+	<span id="sample" class="sample">sample</span>, 
+	<span id="sample2" class="sample">for KEGG mapping</span>
+      </p>
+      
+      <p class="param">Target</p>
+      <select id="target" name="target" class="form_input">
+      <option value="go_bp" ${target{"go_bp"}}>GO: biological process</option>
+      <option value="go_mf" ${target{"go_mf"}}>GO: molecular function</option>
+      <option value="go_cc" ${target{"go_cc"}}>GO: cellular component</option>
+      <option value="ko" ${target{"ko"}}>KEGG pathway</option>
+      </select><br>
+      
+      <p class="param">P-value thresh. <span style="font-size:13px;font-weight:normal;">(0..1)</span></p>
+      <input type="text" id="thresh" name="thresh" value="${thresh}" class="form_input"><br>
+      <input type="button" value="submit" id="submit" style="margin-top:20px;margin-right:10px;" class="form_input_button">
+      <input type="submit" value="json" style="margin-top:20px;" class="form_input_button">
+      <input type="hidden" name="e" value="1">
+      </form>
+    </div>
+
+    <script type="text/javascript" src="/assets/js/p/enrich_vis.js" charset="utf-8"></script>
+    <script type="text/javascript">
+${exec_enrich}
+    </script>
+  </body>
+</html>
+
+EOF

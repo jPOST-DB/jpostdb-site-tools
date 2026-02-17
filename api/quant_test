@@ -1,0 +1,185 @@
+#!/usr/bin/env perl
+
+use strict;
+use CGI;
+use JSON;
+use IO::Socket::SSL;
+use LWP::UserAgent;
+
+my $query = new CGI;
+my $method = $query -> param('method');
+my $valid = $query -> param('valid');
+my $ds1 = $query -> param('dataset1');
+my $ds2 = $query -> param('dataset2');
+
+my $ua = LWP::UserAgent->new;
+
+my $debug = 0;
+if($debug){
+    $ds1="DS1632_1%20DS1632_2%20DS1632_3";
+    $ds2="DS1637_1%20DS1637_2%20DS1637_3";
+    $method = "sc";
+    $valid = "eb";
+}
+
+my $api = "https://tools.jpostdb.org/rest/api/";
+my $apiName = "get_quant_sc";
+$apiName = "get_quant_sc" if($method eq "sc");
+#$apiName = "get_quant_value" if($method eq "aq");
+
+my $enc1 = $ds1;
+my $enc2 = $ds2;
+$enc1 =~ s/[\+ ]/%20/g;
+$enc2 =~ s/[\+ ]/%20/g;
+
+my @values;
+my $command = "";
+my $rand;
+
+if($valid eq "fc"){ ### fold change of average (not validate)
+    my $url = $api.$apiName;
+    my %params = (
+	"dataset1" => $ds1,
+	"dataset2" => $ds2
+	);
+    my @res = decode_json($ua -> post($url, \%params) -> content);
+    my @array = $res[0][0];
+    my $datanum = $#{$array[0]};
+    my $ds2_start = 0;
+    for(my $i = 1; $i <= $datanum; $i++){
+	if($array[0][$i] == 1){
+	    $ds2_start = $i;
+	    last;
+	}
+    }
+    my @list;
+    my $index = 0;
+    my @data = $res[0];
+    for(my $i = 1; $i <= $#{$data[0]}; $i++){
+	my @array = $res[0][$i];
+	my $up = $array[0][0];
+	my $n1 = 0; my $n2 = 0; my $s1 = 0; my $s2 = 0;
+	for(my $j = 1; $j <= $datanum; $j++){
+	    if($j < $ds2_start){
+		$n1++ if($array[0][$j]);
+		$s1 += $array[0][$j];
+	    }else{
+		$n2++ if($array[0][$j]);
+		$s2 += $array[0][$j];
+	    }
+	}
+	next if(!$s1 || !$s2);
+	my $fc = ($s2 / $n2) / ($s1 / $n1);
+	my $logfc = log($fc) / log(2);
+	my $abs = $logfc;
+	$abs *= -1 if($abs < 0);
+	my @data = ($up, "_", $logfc, $abs);
+        @{$list[$index]} = @data;
+	$index++;
+    }
+    @values  = sort{@$b[0] cmp @$a[0]}(@list); # sort by uniprot ID for random plot. don't sort by logfc
+}else{
+    if($valid eq "wc"){     ### Wilcoxon rank sum test 'wilcox.exact(x, y, paired=T)'
+	$command = "Rscript ./script/wilcox.r \"". $api. $apiName. "?dataset1=". $enc1. "&dataset2=". $enc2. "\"";
+    }elsif($valid eq "eb"){ ### E,pirical Bayes
+	$rand = "./tmp/t". time . "_" . int(rand(1000000)) . "_" . int(rand(1000000));
+	$command = "Rscript ./script/j2t.r \"". $api. $apiName. "?dataset1=". $enc1. "&dataset2=". $enc2. "\" ". $rand;
+	system($command);
+	$command = "Rscript ./script/eBayes.r ". $rand;
+    }
+
+    @values = split(/[\n\r]/, `${command}`);
+}
+
+my $url = $api."get_proteins";
+my %params = (
+    "dataset1" => $ds1,
+    "dataset2" => $ds2
+);
+my $json = decode_json($ua -> post($url, \%params)->content);
+my %accs2id = {};
+my %accs2name = {};
+my %accs2gene = {};
+foreach my $d (@{$json->{results}->{bindings}}){
+    my $accs = $d->{accs}->{value};
+    $accs2id{$accs} = "";
+    $accs2name{$accs} = "";
+    $accs2gene{$accs} = ""; 
+    $accs2id{$accs} = $d->{id}->{value} if($d->{id});
+    $accs2name{$accs} = $d->{name}->{value} if($d->{name});
+    $accs2gene{$accs} = $d->{gene}->{value} if($d->{gene});
+}
+
+my $r = ();
+my $tax = "";
+
+if($valid eq "fc"){
+    for(my $i = 1; $i <= $#values; $i++){	
+	my $accs = $values[$i][0];
+	$tax = &get_tax($api, $accs) if(!$tax);
+	my $tmp = exp($values[$i][2] * log(2));
+	my $fc = sprintf("%.3g", $tmp);
+	$fc = "1 / ".sprintf("%.3g", 1 / $tmp) if($tmp < 1);
+	my $obj = {
+	    uniprot => $accs,
+	    id => $accs2id{$accs},
+	    name => $accs2name{$accs},
+	    gene => $accs2gene{$accs},
+	    tax => $tax,
+	    logfc => sprintf("%.3g", $values[$i][2]),
+	    foldchange => $fc,
+	    p_value => "-"
+	};
+	push(@{$r}, $obj);
+    }
+}else{
+    for(my $i = 1; $i <= $#values; $i++){
+	chomp($_);
+	my @a = split(/\t/, $values[$i]);
+	if($a[2] ne "NaN" && $a[2] != 0 && $a[2] ne "NA" && $a[1] ne "NA"){
+	    my $accs = $a[0];
+	    $tax = &get_tax($api, $accs) if(!$tax);
+	    my $tmp = exp($a[2] * log(2));
+	    my $fc = sprintf("%.3g", $tmp);
+	    $fc = "1 / ".sprintf("%.3g", 1 / $tmp) if($tmp < 1);
+	    my $obj = {
+		uniprot => $accs,
+		id => $accs2id{$accs},
+		name => $accs2name{$accs},
+		gene => $accs2gene{$accs},
+		tax => $tax,
+		logfc => sprintf("%.3g", $a[2]),
+		foldchange => $fc,
+		p_value => sprintf("%.2e", $a[1])
+	    };
+	    push(@{$r}, $obj);
+	}
+    }
+}
+
+print "Content-Type: application/json; charset=utf-8\n\n";
+print to_json($r);
+
+system("rm ". $rand) if($valid eq "eb");
+
+sub get_tax {
+    my $api = $_[0];
+    my $up = $_[1];
+    
+    my $ua = LWP::UserAgent->new;
+    my $url = $api."enrich_up_to_tax";
+    my $tax = "";
+    my $i = 0;
+    while($tax == ""){
+	my %params = (
+	    "uniprot" => $up
+	    );
+	my $json = decode_json($ua -> post($url, \%params) -> content);
+	if($json->{results}->{bindings}[0]){
+	    $tax = $json->{results}->{bindings}[0]->{tax}->{value};
+	    $tax = $1 if($tax =~ /(\d+)$/);
+	}
+	$i++;
+    }
+    return $tax;
+}
