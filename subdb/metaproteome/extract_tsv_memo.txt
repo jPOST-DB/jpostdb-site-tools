@@ -1,0 +1,4 @@
+
+MetaLab-MAG の結果ディレクトリから .tsv だけ抜き出してディレクトリ構造を維持しつつコピー
+
+% find {MetaLab-MAG_die]/ -name "*.tsv" -print0 | xargs -0 cp --parents -t {target_dir}/
