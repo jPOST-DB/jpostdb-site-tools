@@ -56,8 +56,7 @@ $limit = 100000 if(!$limit || $limit < 0 || $limit > 500000);
 $format = "json" if($format ne "json" && $format ne "text");
 exit 0 if(!$sparqlist);
 
-#my $api = "https://tools.jpostdb.org/rest/api/";
-my $api = "http://localhost:3017/rest/api/";
+my $api = "https://tools.jpostdb.org/rest/api/";
 
 my $json;
 my $loop;

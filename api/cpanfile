@@ -7,4 +7,5 @@
 
 requires 'CGI';
 requires 'JSON';
-requires 'AneEvent';
+requires 'AnyEvent';
+requires 'AnyEvent::HTTP';;
