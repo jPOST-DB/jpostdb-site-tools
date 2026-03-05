@@ -1,6 +1,6 @@
    
 var jpostdb = jpostdb || {
-    version: "0.0.16",
+    version: "1.0.0",
     root: "https://tools.jpostdb.org/",
     dev_root: "/db-main/",
     api: "https://tools.jpostdb.org/rest/api/",
