@@ -18,7 +18,7 @@ jpostdb.protein_evidence = jpostdb.protein_evidence || {
 	var group = jpostdb.protein_evidence;
 	var param = group.param;
         param = jpostdb.init_param(param, stanza_params, stanza, renderDiv);
-        group.param.specificParam[renderId] = {apiArg: param.apiArg};
+        group.param.specificParam[renderId] = {apiArg: param.apiArg, slice_stanza: false};
 
 	var renderDiv = d3.select(stanza.select(renderDiv));
 	var view = renderDiv.append("div").attr("class", "view");
@@ -38,7 +38,7 @@ jpostdb.protein_evidence = jpostdb.protein_evidence || {
 	}
 	var url = jpostdb.api + slice_stanza + "proteins_evidence?" + param.apiArg.join("&");
 //	jpostdb.httpReq("get", url, null, group.pie_chart, svg, renderDiv, param.width / 2, 0);
-	jpostdb.fetchReq("get", url, null, renderDiv, param.width, group.pie_chart);
+        jpostdb.fetchReq("get", url, null, renderDiv, param.width, group.pie_chart, renderId);
     },
 
     pie_chart: function(data, renderDiv, renderId){
@@ -50,8 +50,8 @@ jpostdb.protein_evidence = jpostdb.protein_evidence || {
 
         var showProteinList = function(id){
 	    let slice_stanza = "";
-            if (group.param.specificParam[renderId].slice_stanza == 1) slice_stanza = "slice_stanza_";
-	    var url = jpostdb.api + slice_stanza + "protein_with_evidence?" + group.param.specificParam[renderId].apiArg.join("&") + "&evidence=" + id;
+            if (param.specificParam[renderId].slice_stanza == 1) slice_stanza = "slice_stanza_";
+	    var url = jpostdb.api + slice_stanza + "protein_with_evidence?" + param.specificParam[renderId].apiArg.join("&") + "&evidence=" + id;
 	 //   jpostdb.httpReq("get", url, null, group.protein_with_evidence, svg, renderDiv, param.width / 2, param.top);
 	    jpostdb.fetchReq("get", url, null, renderDiv, param.width, group.protein_with_evidence);
 	}
