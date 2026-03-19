@@ -7,7 +7,8 @@ jpostdb.go_count = jpostdb.go_count || {
 	top: 0,
 	size: 240, // pie chart size
 	margin: 20,
-	anime: 100
+	anime: 100,
+        specificParam: {}
     },
 
     svg_height: {},
