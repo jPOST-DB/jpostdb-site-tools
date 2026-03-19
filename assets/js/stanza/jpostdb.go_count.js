@@ -13,16 +13,15 @@ jpostdb.go_count = jpostdb.go_count || {
     svg_height: {},
 
     init: function(stanza_params, stanza, renderDiv){
+        var renderId = Math.random().toString(36).slice(-8);
 	var group = jpostdb.go_count;
 	var param = group.param;
-	param = jpostdb.init_param(param, stanza_params, stanza, renderDiv);
-        if (stanza_params.slice_stanza) {
-          param.slice_stanza = stanza_params.slice_stanza;
-        }
+        param = jpostdb.init_param(param, stanza_params, stanza, renderDiv);
+        group.param.specificParam[renderId] = {apiArg: param.apiArg, slice_stanza: false};
 
 	var renderDiv = d3.select(stanza.select(renderDiv));
 	renderDiv.append("div").attr("id", "go_category_select_div");
-	group.mk_go_category_select(renderDiv);
+        group.mk_go_category_select(renderDiv, renderId);
 	var view = renderDiv.append("div").attr("class", "view");
 	var svg = view.append("svg")
 	    .attr("id", "pie_chart_svg")
@@ -35,12 +34,15 @@ jpostdb.go_count = jpostdb.go_count || {
 	
         param.category = "biological_process";
         let slice_stanza = "";
-        if (parseInt(param.slice_stanza) == 1) slice_stanza = "slice_stanza_";
+        if (parseInt(stanza_params.slice_stanza) == 1) {
+	  group.param.specificParam[renderId].slice_stanza = 1;
+	  slice_stanza = "slice_stanza_";
+	}
 	var url = jpostdb.api + slice_stanza + "proteins_go_count?" + param.apiArg.join("&") + "&category=" + param.category;
-	jpostdb.fetchReq("get", url, null, renderDiv, param.width, group.pie_chart);
+        jpostdb.fetchReq("get", url, null, renderDiv, param.width, group.pie_chart, renderId);
     },
 
-    mk_go_category_select: function(renderDiv){
+    mk_go_category_select: function(renderDiv, renderId){
 	var group = jpostdb.go_count;
 	var param = group.param;
 	var sel_div = renderDiv.select("#go_category_select_div");
@@ -59,13 +61,13 @@ jpostdb.go_count = jpostdb.go_count || {
 	    renderDiv.select("#go_count_select_div").html("");
 	    renderDiv.select("#protein_table").html("");
 	    let slice_stanza = "";
-            if (parseInt(param.slice_stanza) == 1) slice_stanza = "slice_stanza_";
-	    var url = jpostdb.api + slice_stanza + "proteins_go_count?" + param.apiArg.join("&") + "&category=" + param.category;
-	    jpostdb.fetchReq("get", url, null, renderDiv, param.width, group.pie_chart);
+            if (param.specificParam[renderId].slice_stanza == 1) slice_stanza = "slice_stanza_";
+	    var url = jpostdb.api + slice_stanza + "proteins_go_count?" + param.specificParam[renderId].apiArg.join("&") + "&category=" + param.category;
+	    jpostdb.fetchReq("get", url, null, renderDiv, param.width, group.pie_chart, renderId);
 	});
     },
     
-    pie_chart: function(data, renderDiv){
+    pie_chart: function(data, renderDiv, renderId){
 	var group = jpostdb.go_count;
 	var param = group.param;
 	var svg = renderDiv.select("#pie_chart_svg");
@@ -74,8 +76,8 @@ jpostdb.go_count = jpostdb.go_count || {
 	
         var showProteinList = function(id){
 	    let slice_stanza = "";
-            if (parseInt(param.slice_stanza) == 1) slice_stanza = "slice_stanza_";
-	    var url = jpostdb.api + slice_stanza + "protein_with_go_term?" + param.apiArg.join("&") + "&category=" + param.category + "&term=" + encodeURIComponent(id);
+            if (param.specificParam[renderId].slice_stanza == 1) slice_stanza = "slice_stanza_";
+	    var url = jpostdb.api + slice_stanza + "protein_with_go_term?" + param.specificParam[renderId].apiArg.join("&") + "&category=" + param.category + "&term=" + encodeURIComponent(id);
 	    jpostdb.fetchReq("get", url, null, renderDiv, param.width, group.protein_with_go_term);
 	}
 
