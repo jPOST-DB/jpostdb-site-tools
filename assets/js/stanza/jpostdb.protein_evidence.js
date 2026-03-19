@@ -7,15 +7,18 @@ jpostdb.protein_evidence = jpostdb.protein_evidence || {
 	top: 0,
 	size: 240, // pie chart size
 	margin: 20,
-        anime: 100
+        anime: 100,
+        specificParam: {}
     },
 
     svg_height: {},
 
     init: function(stanza_params, stanza, renderDiv){
+        var renderId = Math.random().toString(36).slice(-8);
 	var group = jpostdb.protein_evidence;
 	var param = group.param;
-	param = jpostdb.init_param(param, stanza_params, stanza, renderDiv);
+        param = jpostdb.init_param(param, stanza_params, stanza, renderDiv);
+        group.param.specificParam[renderId] = {apiArg: param.apiArg};
 
 	var renderDiv = d3.select(stanza.select(renderDiv));
 	var view = renderDiv.append("div").attr("class", "view");
@@ -30,7 +33,7 @@ jpostdb.protein_evidence = jpostdb.protein_evidence || {
 
 	let slice_stanza = "";
         if (parseInt(stanza_params.slice_stanza) == 1) {
-	  group.param.slice_stanza = 1;
+	  group.param.specificParam[renderId].slice_stanza = 1;
 	  slice_stanza = "slice_stanza_";
 	}
 	var url = jpostdb.api + slice_stanza + "proteins_evidence?" + param.apiArg.join("&");
@@ -38,17 +41,17 @@ jpostdb.protein_evidence = jpostdb.protein_evidence || {
 	jpostdb.fetchReq("get", url, null, renderDiv, param.width, group.pie_chart);
     },
 
-    pie_chart: function(data, renderDiv){
+    pie_chart: function(data, renderDiv, renderId){
 	var group = jpostdb.protein_evidence;
 	var param = group.param;
 	var svg = renderDiv.select("#pie_chart_svg");
 	var sel_div = renderDiv.select("#protein_evidence_select_div");
 	var table = renderDiv.select("#protein_table");
-      console.log(param);
+
         var showProteinList = function(id){
 	    let slice_stanza = "";
-            if (param.slice_stanza == 1) slice_stanza = "slice_stanza_";
-	    var url = jpostdb.api + slice_stanza + "protein_with_evidence?" + param.apiArg.join("&") + "&evidence=" + id;
+            if (group.param.specificParam[renderId].slice_stanza == 1) slice_stanza = "slice_stanza_";
+	    var url = jpostdb.api + slice_stanza + "protein_with_evidence?" + group.param.specificParam[renderId].apiArg.join("&") + "&evidence=" + id;
 	 //   jpostdb.httpReq("get", url, null, group.protein_with_evidence, svg, renderDiv, param.width / 2, param.top);
 	    jpostdb.fetchReq("get", url, null, renderDiv, param.width, group.protein_with_evidence);
 	}
